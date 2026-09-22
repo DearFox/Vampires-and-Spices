@@ -29,7 +29,7 @@ public class VampiresMod implements ModInitializer {
                 }
 
                 // 2. Проверяем тег "Vampire"
-                if (!player.getScoreboardTags().contains("Vampire")) {
+                if (!player.entityTags().contains("Vampire")) {
                     continue;
                 }
 
