@@ -2,11 +2,11 @@ package com.example.vampires;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.world.GameMode;
-import net.minecraft.world.LightType;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,40 +14,32 @@ public class VampiresMod implements ModInitializer {
     public static final String MOD_ID = "vampires-and-spices";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    // Время горения в тиках (20 тиков = 1 секунда). 8 секунд как у огня.
-    private static final int BURN_DURATION_TICKS = 80;
+    private static final int BURN_DURATION_TICKS = 160; // 8 секунд
 
     @Override
     public void onInitialize() {
         LOGGER.info("Vampires and Spices: инициализация серверной логики");
 
-        // Регистрируем событие, которое срабатывает в конце каждого тика сервера
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            // Перебираем всех игроков на сервере
-            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                // 1. Проверяем, что игрок в режиме выживания или приключения
-                GameMode gameMode = player.interactionManager.getGameMode();
-                if (gameMode != GameMode.SURVIVAL && gameMode != GameMode.ADVENTURE) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                // 1. Проверяем режим игры
+                GameType gameMode = player.gameMode.getGameModeForPlayer();
+                if (gameMode != GameType.SURVIVAL && gameMode != GameType.ADVENTURE) {
                     continue;
                 }
 
-                // 2. Проверяем наличие тега "Vampire"
-                if (!player.getCommandTags().contains("Vampire")) {
+                // 2. Проверяем тег "Vampire"
+                if (!player.getTags().contains("Vampire")) {
                     continue;
                 }
 
-                // 3. Получаем уровень небесного света в позиции игрока
-                World world = player.getWorld();
-                int skyLight = world.getLightingProvider()
-                        .get(LightType.SKY)
-                        .getLightLevel(player.getBlockPos());
+                // 3. Получаем уровень небесного света
+                Level world = player.level();
+                int skyLight = world.getBrightness(LightLayer.SKY, player.blockPosition());
 
-                // 4. Если уровень света >= 10, поджигаем игрока
+                // 4. Поджигаем, если свет >= 10
                 if (skyLight >= 10) {
-                    // Устанавливаем огонь на BURN_DURATION_TICKS тиков
-                    player.setFireTicks(BURN_DURATION_TICKS);
-                    // Опционально: можно отправить сообщение в лог для отладки
-                    // LOGGER.info("Подожжён вампир: {} (свет: {})", player.getName().getString(), skyLight);
+                    player.setRemainingFireTicks(BURN_DURATION_TICKS);
                 }
             }
         });
